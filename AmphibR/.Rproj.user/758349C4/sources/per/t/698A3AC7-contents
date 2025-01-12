@@ -1,3 +1,4 @@
+#Load packages
 library(randomForest)
 library(readxl)
 library(dplyr)
@@ -6,11 +7,16 @@ library(ggplot2)
 library(evaluate)
 library(pROC)
 
+#Load Dataset
 both <- read_excel("MasterAmphibWithTemps.xlsx")
 frog = subset(both, both$Common_Nam=="Rocky Mountain Tailed Frog")
-#write.csv(frog, "MasterAmphibWithTemps.csv")
 frog = subset(frog, frog$Latitude<=49)#only modelling in United States-->remove canadian samples
-frog.all = read_excel("Frog_allpoints.xlsx")
+
+#You will need to unzip this file first
+#Load 1 km points across all streams in RMTF range
+frog.all = read.csv("Frog_allpoints.csv")
+
+#Clean points
 frog.all = subset(frog.all, frog.all$feature_y<=49)#remove random location in Canada
 frog.all=subset(frog.all,frog.all$S1_93_11>=0 & frog.all$BFI>=0)
 
@@ -30,9 +36,7 @@ frog.B = rbind(frog.A, rand_df)
 
 
 ###########################Split into training and validation sets
-# Simple into 3 sets.
 fset <- sample(seq(1, 2), size = nrow(frog.B), replace = T, prob = c(.8, .2))
-
 train <- frog.B[fset == 1,]
 test <- frog.B[fset == 2,]
 train=as.data.frame(train)
@@ -61,7 +65,7 @@ predictors$occ = NA
 predictors$occ=predict(frog.rf, predictors[,c(1:6)])
 
 
-##########LOOK AT ACCURACY ON TEST
+##########LOOK AT PREDICTION ACCURACY on VALIDATION DATASET (TEST)
 test=test%>%rename(TEMP=S1_93_11)
 test$rf.predicted=NA
 test$rf.predicted=predict(frog.rf, test[,c(3:8)])
@@ -72,7 +76,7 @@ test%>%
   group_by(present, rf.predicted)%>%
   summarise(n=length(slope))
 
-#limit entire network with super steep slopes (>16% as suggested by Isaak et al. 2025 NAJFM)
+#limit entire SDM network with super steep slopes (>16% as suggested by Isaak et al. 2025 NAJFM)
 sdm=predictors%>%filter(slope<0.16)
 write.csv(sdm, file = "frog_sdm.csv")
 
@@ -109,8 +113,7 @@ sdm%>%filter(occ==1)%>%
 
 
 ################################Look at loss and refugia at observation sites
-
-#USA Actual sites too warm
+#USA Actual sites too warm end of century
 frog$TooWarm2080=NA
 frog$TooWarm2080[which(frog$S32_2080D>=13)]="TOO WARM"
 frog$TooWarm2080[which(frog$S32_2080D>12 & frog$S32_2080D<13)]="margCWH"
@@ -118,7 +121,6 @@ frog$TooWarm2080[which(frog$S32_2080D<=12)]="CWH"
 frog%>%
   group_by(TooWarm2080)%>%
   summarise (n = length(slope),p = length(slope)/3855)
-
 
 #USA Historical
 frog$TooWarmHIST=NA
@@ -129,13 +131,7 @@ frog%>%
   group_by(TooWarmHIST)%>%
   summarise (n = length(slope),p = length(slope)/3855)
 
-twh=frog%>%filter(TooWarmHIST=="TOO WARM")
-twh_JA=twh%>%filter(M==8 | M==7)
-
-ntwh=frog%>%filter(TooWarmHIST!="TOO WARM")
-ntwh_JA=ntwh%>%filter(M==8 | M==7)
-
-#Canada Actual sites too warm
+#Canada Actual sites too warm end of century
 frogBC=read.csv("CANADA_ONLY.csv")
 frogBC$TooWarm2080=NA
 frogBC$TooWarm2080[which(frogBC$TEMP_2080_RCP6>=13)]="TOO WARM"
