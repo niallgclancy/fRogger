@@ -19,15 +19,20 @@ frog.all = read.csv("Frog_allpoints.csv")
 #Clean points
 frog.all = subset(frog.all, frog.all$feature_y<=49)#remove random location in Canada
 frog.all=subset(frog.all,frog.all$S1_93_11>=0 & frog.all$BFI>=0)
-
-
+frog.all = frog.all[,c(13,9,21,17,18,19,20,22,23,77,78)]
+#merge duplicated points (same as spatial dissolve)
+frog.all=frog.all%>%
+  group_by(OBSPRED_ID)%>%
+  summarise(SLOPE=mean(slope), elev=mean(ELEV), canopy=mean(CANOPY), precip=mean(PRECIP), bfi=mean(BFI),S1=mean(S1_93_11), S30=mean(S30_2040D), S32=mean(S32_2080D), x=mean(feature_x), y=mean(feature_y))
+frog.all=frog.all%>%rename(slope=SLOPE, ELEV=elev, CANOPY=canopy, PRECIP=precip, BFI=bfi, S1_93_11=S1, S30_2040D=S30, S32_2080D=S32)
 
 #Randomly select pseudo absences and merge dataframes of observations and pseudo-absences
 rand_df <- frog.all[sample(nrow(frog.all), size=3855), ]
 frog.A = frog[,c(8,9,12,20:26)]
-rand_df = rand_df[,c(8,16:22,76,77)]
-names(rand_df)[names(rand_df) == "feature_y"] <- "Latitude"
-names(rand_df)[names(rand_df) == "feature_x"] <- "Longitude"
+names(rand_df)[names(rand_df) == "y"] <- "Latitude"
+names(rand_df)[names(rand_df) == "x"] <- "Longitude"
+rand_df$OBSPRED_ID=NULL
+rand_df$present=NULL
 frog.A$present = NA
 frog.A$present = 1
 rand_df$present = NA
@@ -60,7 +65,7 @@ eval.rf = eval(frog.rf)
 eval.rf
 varImpPlot(frog.rf)
 frog.all=frog.all%>%rename(TEMP=S1_93_11)
-predictors = frog.all[,c(8,16,17,18,19,20,78,79,21,22)]
+predictors = frog.all[,c(2:7,1,8:11)]
 predictors$occ = NA
 predictors$occ=predict(frog.rf, predictors[,c(1:6)])
 
@@ -98,19 +103,26 @@ sdm$TooWarm2040[which(sdm$S30_2040D<=12)]="CWH"
 #Historical
 sdm%>%filter(occ==1)%>%
   group_by(TooWarmHIST)%>%
-  summarise(n=length(slope), p=length(slope)/61949) #
+  summarise(n=length(slope), p=length(slope)/7118) #
 
 #2040s
 sdm%>%filter(occ==1)%>%
   group_by(TooWarm2040)%>%
-  summarise(n=length(slope), p=length(slope)/61949) 
+  summarise(n=length(slope), p=length(slope)/7118) 
 
 #2080s
 sdm%>%filter(occ==1)%>%
   group_by(TooWarm2080)%>%
-  summarise(n=length(slope), p=length(slope)/61949) 
+  summarise(n=length(slope), p=length(slope)/7118) 
 
-
+#Loss Calculation (Low End)
+sdm%>%filter(occ==1 & TooWarmHIST!="TOO WARM")%>%
+  group_by(TooWarm2080)%>%
+  summarise(n=length(slope), p=length(slope)/6650) 
+#Loss Calculation (High End)
+sdm%>%filter(occ==1 & TooWarmHIST=="CWH")%>%
+  group_by(TooWarm2080)%>%
+  summarise(n=length(slope), p=length(slope)/5915) 
 
 ################################Look at loss and refugia at observation sites
 #USA Actual sites too warm end of century
