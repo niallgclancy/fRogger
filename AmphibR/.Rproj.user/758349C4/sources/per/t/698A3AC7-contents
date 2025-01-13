@@ -77,8 +77,8 @@ test%>%
   summarise(n=length(slope))
 
 #limit entire SDM network with super steep slopes (>16% as suggested by Isaak et al. 2025 NAJFM)
-sdm=predictors%>%filter(slope<0.16)
-write.csv(sdm, file = "frog_sdm.csv")
+sdm=predictors%>%filter(slope<0.16 & WATERBODY==0)
+write.csv(sdm, file = "frog_sdm.csv") #This file can then be merged by the "OBSPRED_ID field to NORWEST)
 
 ################################Look at loss and refugia in modelled distribution
 sdm$TooWarm2080=NA
